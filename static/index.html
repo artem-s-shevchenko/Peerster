@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>Messenger</title>
+   <script src="jquery-3.3.1.min.js"></script>
+   <script>
+      $(document).ready(function(){
+         //process button for private
+         $("#private_mode_button").on('click', function(event) {
+            var win = window.open('private.html');
+            if (win) {
+                //Browser has allowed it to be opened
+                win.focus();
+            } else {
+                //Browser has blocked it
+                alert('Please allow popups for this website');
+            }
+         });
+         //process button for sharing
+         $("#share_files_button").on('click', function(event) {
+            var win = window.open('file_sharing.html');
+            if (win) {
+                //Browser has allowed it to be opened
+                win.focus();
+            } else {
+                //Browser has blocked it
+                alert('Please allow popups for this website');
+            }
+         });
+         //process message form
+         $("#message_form").on('submit', function(event) {
+            event.preventDefault()
+            var form_value = $("#message_input").val().trim()
+            if(form_value != "") {
+               var newMessage = {
+                  "Message": form_value
+               }
+               $("#message_input").val("")
+               $.ajax({
+                  url: "/message",
+                  type : "POST",
+                  contentType: 'application/json; charset=utf-8',
+                  data : JSON.stringify(newMessage),
+                  success : function(result) {
+                     console.log(result);
+                  },
+                  error: function(xhr, resp, text) {
+                     console.log(xhr, resp, text);
+                  }
+               })
+            }
+         });
+
+         //process node form
+         $("#node_form").on('submit', function(event) {
+            event.preventDefault()
+            var form_value = $("#node_input").val().trim()
+            if(form_value != "") {
+               var newPeer = {
+                  "IP": form_value
+               }
+               $("#node_input").val("")
+               $.ajax({
+                  url: "/node",
+                  type : "POST",
+                  contentType: 'application/json; charset=utf-8',
+                  data : JSON.stringify(newPeer),
+                  success : function(result) {
+                     console.log(result);
+                  },
+                  error: function(xhr, resp, text) {
+                     console.log(xhr, resp, text);
+                  }
+               })
+            }
+         });
+
+         //periodic update
+         (function update() {
+            $.ajax({
+               url: "/getupdate",
+               dataType : 'json',
+               success : function(result) {
+                  console.log(result);
+                  $('#idfield').text("My Id: " + result.Myid);
+                  $('#messagebox').empty();
+                  for(var i=0, len=result.Newmessages.length; i < len; i++) {
+                     $('#messagebox').append(result.Newmessages[i]);
+                     $('#messagebox').append("<br/>")
+                  }
+                  //$('#messagebox').scrollTop($('#messagebox')[0].scrollHeight);
+                  $('#peerbox').empty();
+                  for(var i=0, len=result.Peerlist.length; i < len; i++) {
+                     $('#peerbox').append(result.Peerlist[i]);
+                     $('#peerbox').append("<br/>")
+                  }
+               },
+               error: function(xhr, resp, text) {
+                  console.log(xhr, resp, text);
+               }
+            });
+            setTimeout(update, 1000);
+         })();
+      });
+   </script>
+</head>
+<body>
+
+<table style="margin-left: auto; margin-right: auto;" border="1">
+   <tbody>
+      <tr>
+         <td style="height: 50px;"><div id="idfield">My Id:</div></td>
+         <td style="height: 50px;">
+            <button style="background-color: #f44336; width:195px; height:25px;" id="private_mode_button">Enter private mode</button> <br/>
+            <button style="background-color: #36e2f4; width:195px; height:25px;;" id="share_files_button">Enter file sharing menu</button>
+         </td>
+      </tr>
+      <tr>
+         <td>
+         	<div id="messagebox" style="overflow: auto; width:300px; height:250px;">
+         	
+         	</div>
+     	 </td>
+         <td>
+         	<div id="peerbox" style="overflow: auto; width:200px; height:250px;">
+         	</div>
+         </td>
+      </tr>
+      <tr>
+         <td style="height: 60px;">
+            <form id="message_form" action="">
+               Message:<br />
+               <input type="text" name="message"/ id="message_input"> <br />
+               <button type="submit">Send</button>
+            </form>
+         </td>
+         <td style="height: 60px;">
+            <form id="node_form" action="">
+               New node:<br />
+               <input type="text" name="newnode"/ id="node_input"> <br />
+               <button type="submit">Add</button>
+            </form>
+         </td>
+      </tr>
+   </tbody>
+</table>
+
+</body>
+</html>

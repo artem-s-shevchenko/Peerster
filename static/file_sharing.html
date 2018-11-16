@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>File Sharing</title>
+   <script src="jquery-3.3.1.min.js"></script>
+   <script>
+      $(document).ready(function(){
+         //process share form
+         $("#share_form").on('submit', function(event) {
+            event.preventDefault()
+            var form_value = $("#share_file").val().trim()
+            if(form_value != "") {
+               var newMessage = {
+                  "Origin": form_value,
+                  "Destination": "",
+                  "HopLimit": 0,
+                  "HashValue": ""
+               }
+               $("#share_file").val("")
+               $.ajax({
+                  url: "/filesharing",
+                  type : "POST",
+                  contentType: 'application/json; charset=utf-8',
+                  data : JSON.stringify(newMessage),
+                  success : function(result) {
+                     console.log(result);
+                  },
+                  error: function(xhr, resp, text) {
+                     console.log(xhr, resp, text);
+                  }
+               })
+            }
+         });
+
+         //process download form
+         $("#download_form").on('submit', function(event) {
+         	function hexToBytes(hex) {
+			    for (var bytes = [], c = 0; c < hex.length; c += 2)
+			    bytes.push(parseInt(hex.substr(c, 2), 16));
+			    return bytes;
+			   }
+            event.preventDefault()
+            var hash_value = $("#download_file_hash").val().trim()
+            var path_value = $("#download_file_path").val().trim()
+            var dest_value = $('#download_file_dest').val()
+            if(dest_value == "") {
+               alert("Select destination!")
+               return
+            }
+            var re = new RegExp("[A-Fa-f0-9]{64}")
+            if(!re.test(hash_value)) {
+               alert("Wrong hash!")
+               return
+            }
+            if(hash_value != "" && path_value!= "") {
+               var newMessage = {
+                  "Origin": path_value,
+                  "Destination": dest_value,
+                  "HopLimit": 0,
+                  "HashValue": hexToBytes(hash_value)
+               }
+               $("#download_file_hash").val("")
+               $("#download_file_dest").val("")
+               $("#download_file_path").val("")
+               $.ajax({
+                  url: "/filesharing",
+                  type : "POST",
+                  contentType: 'application/json; charset=utf-8',
+                  data : JSON.stringify(newMessage),
+                  success : function(result) {
+                     console.log(result);
+                  },
+                  error: function(xhr, resp, text) {
+                     console.log(xhr, resp, text);
+                  }
+               })
+            }
+         });
+         //periodic update
+         (function update() {
+            $.ajax({
+               url: "/availableroutes",
+               dataType : 'json',
+               success : function(result) {
+                  console.log(result);
+                  var list_of_values = []
+                  $('#download_file_dest').children().each(function() {
+                      list_of_values.push($(this).text());
+                  })
+                  for(var i=0, len=result.Peerlist.length; i < len; i++) {
+                     var value = result.Peerlist[i]
+                     if(list_of_values.indexOf(value) == -1) {
+                        $('#download_file_dest').append('<option value="'+value+'">'+value+'</option>')
+                     }
+                  }
+               },
+               error: function(xhr, resp, text) {
+                  console.log(xhr, resp, text);
+               }
+            });
+            setTimeout(update, 1000)
+         })();
+      });
+   </script>
+</head>
+<body>
+
+<table style="margin-left: auto; margin-right: auto;" border="1">
+   <tbody>
+      <tr>
+         <td style="height: 30px; width: 450px;">File sharing
+         </td>
+      </tr>
+      <tr>
+         <td style="height: 60px;">
+            <form id="share_form" action="">
+               I want to share file in "_SharedFiles" directory with name <br />
+               <input type="text" id="share_file"> <br />
+               <button type="submit">Share</button>
+            </form>
+         </td>
+      </tr>
+      <tr>
+         <td style="height: 60px;">
+            <form id="download_form" action="">
+               I want to download a file with hash<br />
+               <input type="text" id="download_file_hash" style="width: 440px;"> <br />
+               from node<br />
+               <select id="download_file_dest">
+               	  <option value="">Select please</option>
+               </select><br />
+               and save it in "_Downloads" directory as<br />
+               <input type="text" id="download_file_path"> <br />
+               <button type="submit">Download</button>
+            </form>
+         </td>
+      </tr>
+   </tbody>
+</table>
+
+</body>
+</html>

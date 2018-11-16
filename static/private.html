@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>Private Messenger</title>
+   <script src="jquery-3.3.1.min.js"></script>
+   <script>
+      $(document).ready(function(){
+         //process message form
+         $("#message_form").on('submit', function(event) {
+            event.preventDefault()
+            var form_value = $("#message_input").val().trim()
+            var dest_value = $('#destbox').val()
+            if(dest_value == "") {
+               alert("Select destination!")
+               return
+            }
+            if(form_value != "") {
+               var newMessage = {
+                  "Origin": "",
+                  "ID": 0,
+                  "Text": form_value,
+                  "Destination": dest_value,
+                  "HopLimit": 10
+               }
+               $("#message_input").val("")
+               $.ajax({
+                  url: "/privatemessage",
+                  type : "POST",
+                  contentType: 'application/json; charset=utf-8',
+                  data : JSON.stringify(newMessage),
+                  success : function(result) {
+                     console.log(result);
+                  },
+                  error: function(xhr, resp, text) {
+                     console.log(xhr, resp, text);
+                  }
+               })
+            }
+         });
+
+         //periodic update
+         (function update() {
+            var selected_value = $('#destbox').val()
+            $.ajax({
+               url: "/getprivateupdate",
+               dataType : 'json',
+               data: {"node": selected_value},
+               success : function(result) {
+                  console.log(result);
+                  $('#messagebox').empty()
+                  for(var i=0, len=result.Newmessages.length; i < len; i++) {
+                     $('#messagebox').append(result.Newmessages[i])
+                     $('#messagebox').append("<br/>")
+                  }
+                  var list_of_values = []
+                  $('#destbox').children().each(function() {
+                      list_of_values.push($(this).text());
+                  })
+                  /*$('#destbox').empty()
+                  if(selected_value == "") {
+                     $('#destbox').append('<option selected value="">Select please</option>')
+                  }
+                  else {
+                     $('#destbox').append('<option value="">Select please</option>')
+                  }*/
+                  for(var i=0, len=result.Peerlist.length; i < len; i++) {
+                     var value = result.Peerlist[i]
+                     /*if(selected_value == value) {
+                        $('#destbox').append('<option selected value="'+value+'">'+value+'</option>')
+                     }
+                     else {
+                        $('#destbox').append('<option value="'+value+'">'+value+'</option>')
+                     }*/
+                     if(list_of_values.indexOf(value) == -1) {
+                        $('#destbox').append('<option value="'+value+'">'+value+'</option>')
+                     }
+                  }
+               },
+               error: function(xhr, resp, text) {
+                  console.log(xhr, resp, text);
+               }
+            });
+            setTimeout(update, 1000)
+         })();
+      });
+   </script>
+</head>
+<body>
+
+<table style="margin-left: auto; margin-right: auto;" border="1">
+   <tbody>
+      <tr>
+         <td style="height: 30px;">Private message to: 
+            <select id="destbox">
+               <option value="">Select please</option>
+            </select>
+         </td>
+      </tr>
+      <tr>
+         <td>
+         	<div id="messagebox" style="overflow: auto; width:300px; height:250px;">
+         	
+         	</div>
+     	 </td>
+      </tr>
+      <tr>
+         <td style="height: 60px;">
+            <form id="message_form" action="">
+               Message:<br />
+               <input type="text" name="message"/ id="message_input"> <br />
+               <button type="submit">Send</button>
+            </form>
+         </td>
+      </tr>
+   </tbody>
+</table>
+
+</body>
+</html>

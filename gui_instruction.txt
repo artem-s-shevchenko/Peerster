@@ -1,0 +1,8 @@
+Here you can find a small instuction for GUI.
+By default GUI is disabled. 
+It was done intentionally in order to be able to test several peer nodes on the same machine without specifiying anything related to GUI.
+So, to run the GUI, it is necessary to use one more parameter of command line -GUIPort=PortOfGui (e.g. -GUIPort=7777).
+After running Peerster with such parameter, you can access the GUI on http://127.0.0.1:PortOfGui or http://localhost:PortOfGui.
+Chat boxes in GUI become scrollable when they are filled with messages.
+To work with private messages, click the button "Enter private mode" on the main page. The new browser tab with private messenger will be opened. Before sending a message, a destination must be chosen from the drop-down list.
+To work with files, click the button "Enter file sharing menu" on the main page. The new browser tab with file sharing menu will be opened. File must be placed in _SharedFiles directory before sharing. Names of files to share and to download must be relative to _SharedFiles and to _Downloads correspondingly.
