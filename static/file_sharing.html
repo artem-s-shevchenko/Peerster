@@ -7,6 +7,17 @@
    <script src="jquery-3.3.1.min.js"></script>
    <script>
       $(document).ready(function(){
+      	 //process search button
+      	 $("#search_mode_button").on('click', function(event) {
+            var win = window.open('search.html');
+            if (win) {
+                //Browser has allowed it to be opened
+                win.focus();
+            } else {
+                //Browser has blocked it
+                alert('Please allow popups for this website');
+            }
+         });
          //process share form
          $("#share_form").on('submit', function(event) {
             event.preventDefault()
@@ -16,7 +27,7 @@
                   "Origin": form_value,
                   "Destination": "",
                   "HopLimit": 0,
-                  "HashValue": ""
+                  "HashValue": []
                }
                $("#share_file").val("")
                $.ajax({
@@ -38,7 +49,7 @@
          $("#download_form").on('submit', function(event) {
          	function hexToBytes(hex) {
 			    for (var bytes = [], c = 0; c < hex.length; c += 2)
-			    bytes.push(parseInt(hex.substr(c, 2), 16));
+			    	bytes.push(parseInt(hex.substr(c, 2), 16));
 			    return bytes;
 			   }
             event.preventDefault()
@@ -135,6 +146,10 @@
                <input type="text" id="download_file_path"> <br />
                <button type="submit">Download</button>
             </form>
+         </td>
+      </tr>
+      <tr>
+         <td style="text-align: center;"> <button style="background-color: #f44336; width:400px; height:25px;" id="search_mode_button">I want to search</button> <br/>
          </td>
       </tr>
    </tbody>

@@ -8,6 +8,7 @@ import (
 	"time"
     "sync/atomic"
     "crypto/sha256"
+    "regexp"
 )
 
 var timeout int = 1
@@ -60,12 +61,21 @@ func listenRumorClient(gossiper *Gossiper) {
             gossiper.RoutingTable.mux.Unlock()
     	}
     	if dec.DataRequest != nil {
-    		if dec.DataRequest.Destination == "" {
+    		if len(dec.DataRequest.HashValue) == 0 {
     			go index_file(gossiper, dec.DataRequest.Origin)
 			} else {
 				go download_file(gossiper, dec.DataRequest.Destination, dec.DataRequest.HashValue, dec.DataRequest.Origin)
 			}
     	}
+        if dec.SearchRequest != nil {
+            budg := uint64(2)
+            increase := true
+            if dec.SearchRequest.Budget != 0 {
+                budg = dec.SearchRequest.Budget
+                increase = false
+            }
+            go search(gossiper, budg, dec.SearchRequest.Keywords, increase)
+        }
 	}
 }
 
@@ -321,11 +331,57 @@ func processDataReplyMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UD
     }
 }
 
+func processSearchRequestMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UDPAddr) {
+    if detectDuplicateRequest(gossiper, dec) == true {
+        return
+    }
+	results := []*SearchResult{}
+    gossiper.SafeFileData.mux.Lock()
+    for _, key := range dec.SearchRequest.Keywords {
+    	reg_exp := regexp.MustCompile("^.*" + key + ".*$")
+        for k, v := range gossiper.SafeFileData.FileData {
+            if reg_exp.MatchString(k) {
+            	chunks := []uint64{}
+            	for i := uint64(1); i <= v.LastChunk; i++ {
+            		chunks = append(chunks, i)
+            	}
+            	if len(chunks) == 0 {
+            		continue
+            	}
+            	results = append(results, &SearchResult{k, v.Metahash[:], chunks, v.NumberOfChunks})
+            }
+        }
+    }
+    gossiper.SafeFileData.mux.Unlock()
+    if len(results) > 0 {
+	    search_reply := SearchReply{gossiper.Nodename, dec.SearchRequest.Origin, 9, results}
+	    packet := GossipPacket{SearchReply: &search_reply}
+	    gossiper.RoutingTable.mux.Lock()
+	    sendMessage(&packet, gossiper.RoutingTable.RouteTable[dec.SearchRequest.Origin], gossiper.PeerConn)
+	    gossiper.RoutingTable.mux.Unlock()
+	}
+    resendSearchRequest(gossiper, dec, addr.String())
+}
+
+func processSearchReplyMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UDPAddr) {
+    if dec.SearchReply.Destination == gossiper.Nodename {
+    	go processSearchResults(gossiper, dec)
+    } else {
+        dec.SearchReply.HopLimit -= 1
+        if dec.SearchReply.HopLimit > 0 {
+            gossiper.RoutingTable.mux.Lock()
+            sendMessage(dec, gossiper.RoutingTable.RouteTable[dec.SearchReply.Destination], gossiper.PeerConn)
+            gossiper.RoutingTable.mux.Unlock()
+        }
+    }
+}
+
 func processRumorPeer(gossiper *Gossiper) {
 	for {
 		dec, addr, err := listen(gossiper.PeerConn)
         if err == nil {
-    		if dec.Rumor != nil || dec.Status != nil || dec.Private != nil || dec.DataRequest != nil || dec.DataReply != nil {
+    		if dec.Rumor != nil || dec.Status != nil || dec.Private != nil || dec.DataRequest != nil || dec.DataReply != nil || 
+            dec.SearchRequest != nil || dec.SearchReply != nil {
     			gossiper.SafePeersList.mux.Lock()
     	    	checkAndAppend(&gossiper.SafePeersList.PeersList, addr.String())
     	    	fmt.Println("PEERS", strings.Join(gossiper.SafePeersList.PeersList, ","))
@@ -345,6 +401,12 @@ func processRumorPeer(gossiper *Gossiper) {
             }
             if dec.DataReply != nil {
                 processDataReplyMessage(gossiper, dec, addr)
+            }
+            if dec.SearchRequest != nil {
+                processSearchRequestMessage(gossiper, dec, addr)
+            }
+            if dec.SearchReply != nil {
+                processSearchReplyMessage(gossiper, dec, addr)
             }
         }
 	}

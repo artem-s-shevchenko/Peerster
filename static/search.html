@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>File Search</title>
+   <script src="jquery-3.3.1.min.js"></script>
+   <script>
+      $(document).ready(function(){
+         var last_search = ""
+         //process form
+         $("#search_form").on('submit', function(event) {
+            event.preventDefault()
+            var search_value = $("#search_pattern").val()
+            var budget_value = $('#budget').val()
+            var budg = 0
+            if(budget_value != "") {
+               budg = parseInt(budget_value)
+            }
+            if(search_value != "") {
+               last_search = search_value
+               var newMessage = {
+                  "Origin": "",
+                  "Budget": budg,
+                  "Keywords": search_value.split(",")
+               }
+               $("#search_pattern").val("")
+               $("#budget").val("")
+               $.ajax({
+                  url: "/filesearch",
+                  type : "POST",
+                  contentType: 'application/json; charset=utf-8',
+                  data : JSON.stringify(newMessage),
+                  success : function(result) {
+                     console.log(result);
+                  },
+                  error: function(xhr, resp, text) {
+                     console.log(xhr, resp, text);
+                  }
+               })
+            }
+         });
+         //periodic update
+         (function update() {
+            function hexToBytes(hex) {
+               for (var bytes = [], c = 0; c < hex.length; c += 2)
+                  bytes.push(parseInt(hex.substr(c, 2), 16));
+               return bytes;
+            }
+            $.ajax({
+               url: "/searchresults",
+               dataType : 'json',
+               data: {"request": last_search},
+               success : function(result) {
+                  console.log(result);
+                  $('#resultbox').empty()
+                  for(var i=0, len=result.Newmessages.length; i < len; i++) {
+                     $('#resultbox').append('<p style="margin-top: 0; margin-bottom: 0;">'+result.Newmessages[i]+'</p>')
+                  }
+                  //react to dbclick
+                  $("p").dblclick(function() {
+                     var path_value = prompt("Save as");
+                     if(path_value != null) {
+                        path_value = path_value.trim()
+                        if(path_value != "") {
+                           var hash = $(this).text()
+                           var newMessage = {
+                              "Origin": path_value,
+                              "Destination": "",
+                              "HopLimit": 0,
+                              "HashValue": hexToBytes(hash)
+                           }
+                           $.ajax({
+                              url: "/filesharing",
+                              type : "POST",
+                              contentType: 'application/json; charset=utf-8',
+                              data : JSON.stringify(newMessage),
+                              success : function(result) {
+                                 console.log(result);
+                              },
+                              error: function(xhr, resp, text) {
+                                 console.log(xhr, resp, text);
+                              }
+                           })
+                        }
+                     }
+                  });
+               },
+               error: function(xhr, resp, text) {
+                  console.log(xhr, resp, text);
+               }
+            });
+            setTimeout(update, 1000)
+         })();
+      });
+   </script>
+</head>
+<body>
+
+<table style="margin-left: auto; margin-right: auto;" border="1">
+   <tbody>
+      <tr>
+         <td style="height: 30px; width: 550px;">File search
+         </td>
+      </tr>
+      <tr>
+         <td style="height: 60px;">
+            <form id="search_form" action="">
+               I want to find files with name *pattern1*,*pattern2* ...<br />
+               <input type="text" id="search_pattern"> <br />
+               and budget (empty for default mode) <br />
+               <input type="number" id="budget" min="1" max="32"> <br />
+               <button type="submit">Search</button>
+            </form>
+         </td>
+      </tr>
+      <tr>
+         <td>
+            <div id="resultbox" style="overflow: auto; height:300px; ">
+            </div>
+         </td>
+      </tr>
+   </tbody>
+</table>
+
+</body>
+</html>

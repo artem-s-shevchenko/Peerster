@@ -65,6 +65,26 @@ type DataReply struct{
 	Data []byte
 }
 
+type SearchRequest struct {
+	Origin string
+	Budget uint64
+	Keywords []string
+}
+
+type SearchReply struct {
+	Origin string
+	Destination string
+	HopLimit uint32
+	Results []*SearchResult
+}
+
+type SearchResult struct {
+	FileName string
+	MetafileHash []byte
+	ChunkMap []uint64
+	ChunkCount uint64
+}
+
 type GossipPacket struct {
 	Simple *SimpleMessage
 	Rumor *RumorMessage
@@ -72,6 +92,8 @@ type GossipPacket struct {
  	Private *PrivateMessage
  	DataRequest *DataRequest
 	DataReply *DataReply
+	SearchRequest *SearchRequest
+	SearchReply *SearchReply
 }
 
 type SafePeersList struct {
@@ -117,6 +139,27 @@ type SafeFileIndex struct {
 	mux sync.Mutex
 }
 
+type SafeFileData struct {
+	FileData map[string] *File
+	mux sync.Mutex
+}
+
+type File struct {
+	Metahash [32]byte
+	LastChunk uint64
+	NumberOfChunks uint64
+}
+
+type SafeSearchResults struct {
+	SearchResults map[[32]byte] [][]string
+	mux sync.Mutex
+}
+
+type SafeKeywordResultMapping struct {
+	KeywordResultMapping map[string] [][32]byte
+	mux sync.Mutex
+}
+
 type Gossiper struct {
 	ClientConn *net.UDPConn
 	PeerConn *net.UDPConn
@@ -130,6 +173,10 @@ type Gossiper struct {
 	RoutingTable *RoutingTable
 	SafePrivateMessageHistory *SafePrivateMessageHistory
 	SafeFileIndex *SafeFileIndex
+	SafeFileData *SafeFileData
+	SafeSearchResults *SafeSearchResults
+	SafeKeywordResultMapping *SafeKeywordResultMapping
+	SearchRequestTime map[string] int64
 }
 
 func NewGossiper(clientAddress, peerAddress, name string, peersList []string) *Gossiper {
@@ -161,5 +208,9 @@ func NewGossiper(clientAddress, peerAddress, name string, peersList []string) *G
 		0,
 		&RoutingTable{RouteTable:map[string]string{}, IdTable:map[string]uint32{}},
 		&SafePrivateMessageHistory{History: map[string] []string{}},
-		&SafeFileIndex{FileIndex: map[[32]byte] []byte{}}}
+		&SafeFileIndex{FileIndex: map[[32]byte] []byte{}},
+		&SafeFileData{FileData: map[string] *File{}},
+		&SafeSearchResults{SearchResults: map[[32]byte] [][]string{}},
+		&SafeKeywordResultMapping{KeywordResultMapping:map[string] [][32]byte{}},
+		map[string] int64{}}
 }

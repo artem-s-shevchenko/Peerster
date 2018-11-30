@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"github.com/dedis/protobuf"
 	"encoding/hex"
+	"strings"
 )
 
 type SimpleMessage struct {
@@ -55,6 +56,26 @@ type DataReply struct{
 	Data []byte
 }
 
+type SearchRequest struct {
+	Origin string
+	Budget uint64
+	Keywords []string
+}
+
+type SearchReply struct {
+	Origin string
+	Destination string
+	HopLimit uint32
+	Results []*SearchResult
+}
+
+type SearchResult struct {
+	FileName string
+	MetafileHash []byte
+	ChunkMap []uint64
+	ChunkCount uint64
+}
+
 type GossipPacket struct {
 	Simple *SimpleMessage
 	Rumor *RumorMessage
@@ -62,6 +83,8 @@ type GossipPacket struct {
  	Private *PrivateMessage
  	DataRequest *DataRequest
 	DataReply *DataReply
+	SearchRequest *SearchRequest
+	SearchReply *SearchReply
 }
 
 func main() {
@@ -70,6 +93,8 @@ func main() {
 	var dest = flag.String("dest", "", "destination for private message of file request")
 	var file = flag.String("file", "", "file to be indexed or requested")
 	var request = flag.String("request", "", "hash of metafile")
+	var keywords = flag.String("keywords", "", "file to be indexed or requested")
+	var budget = flag.Uint64("budget", 0, "hash of metafile")
 	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 	udpAddr, err := net.ResolveUDPAddr("udp4", "127.0.0.1:"+*uiport)
@@ -85,18 +110,34 @@ func main() {
     }
 
 	udpConn, err := net.DialUDP("udp4", localAddr, udpAddr)
-	defer udpConn.Close()
 	if err != nil {
         fmt.Println(err)
         return
     }
+    defer udpConn.Close()
 
     packet := GossipPacket{}
     if *dest == "" {
     	if *file != "" {
     		mess := DataRequest{Origin: *file}
+    		if  *request != "" {
+    			if len(*request) != 64 {
+				fmt.Println("Wrong length of hash")
+				return
+				}
+				decoded_hash, err := hex.DecodeString(*request)
+				if err != nil {
+					fmt.Println(err)
+				    return
+				}
+				mess.HashValue = decoded_hash
+    		}
 	    	packet.DataRequest = &mess
-    	} else {
+    	} else if *keywords != "" {
+			kw := strings.Split(*keywords, ",")
+			mess := SearchRequest{Budget: *budget, Keywords: kw}
+	    	packet.SearchRequest = &mess
+		} else {
 	    	mess := SimpleMessage{Contents: *message}
 	    	packet.Simple = &mess
 	    }
