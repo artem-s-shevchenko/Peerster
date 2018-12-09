@@ -95,7 +95,6 @@ func mine(gossiper *Gossiper) {
 		if (countZeros(hash) >= 2) {
 			prevHash = hash
 			gossiper.SafeTxPool.TxPool = []TxPublish{}
-			fmt.Println("CLEANED", len(gossiper.SafeTxPool.TxPool))
 			fmt.Println("FOUND-BLOCK", hex.EncodeToString(hash[:]))
 
 			gossiper.SafeBlocksRegister.mux.Lock()
@@ -299,11 +298,13 @@ func findCommonPoint(gossiper *Gossiper, old_chain_hash [32]byte, new_chain_hash
 
 func processFork(gossiper *Gossiper, old_chain_hash [32]byte, new_chain_hash [32]byte) {
 	common_point := findCommonPoint(gossiper, old_chain_hash, new_chain_hash)
+	//fmt.Println("COMMON POINT", hex.EncodeToString(common_point[:]))
 	not_rewind := false
 	current_block := gossiper.SafeBlocksRegister.BlocksRegister[new_chain_hash]
 	for {
 		if current_block.Hash() == old_chain_hash {
 			not_rewind = true
+			common_point = old_chain_hash
 			break
 		}
 		if current_block.PrevHash == common_point {

@@ -379,6 +379,7 @@ func processSearchReplyMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.
 func processTxPublishMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UDPAddr) {
     dec.TxPublish.HopLimit -= 1
     gossiper.SafeTxPool.mux.Lock()
+    //fmt.Println("TX received", dec.TxPublish.File.Name, dec.TxPublish.HopLimit)
     if isTxValid(gossiper, *(dec.TxPublish)) == true {
     	//fmt.Println("ADD", dec.TxPublish.File.Name)
     	gossiper.SafeTxPool.TxPool = append(gossiper.SafeTxPool.TxPool, *(dec.TxPublish))
@@ -387,6 +388,7 @@ func processTxPublishMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UD
     if dec.TxPublish.HopLimit > 0 {
         gossiper.SafePeersList.mux.Lock()
         for _, v := range gossiper.SafePeersList.PeersList {
+        	//fmt.Println("TX sent to", v)
             sendMessage(dec, v, gossiper.PeerConn)
         }
         gossiper.SafePeersList.mux.Unlock()

@@ -62,6 +62,7 @@ func index_file(gossiper *Gossiper, path string) {
     gossiper.SafeTxPool.mux.Unlock()
 	gossiper.SafePeersList.mux.Lock()
 	for _, v := range gossiper.SafePeersList.PeersList {
+		//fmt.Println("TX sent to", v)
 		sendMessage(&GossipPacket{TxPublish: &tx}, v, gossiper.PeerConn)
 	}
 	gossiper.SafePeersList.mux.Unlock()
