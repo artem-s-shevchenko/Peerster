@@ -315,7 +315,7 @@ func processFork(gossiper *Gossiper, old_chain_hash [32]byte, new_chain_hash [32
 	current_block = gossiper.SafeBlocksRegister.BlocksRegister[old_chain_hash]
 	counter := 0
 	for {
-		if not_rewind {
+		if not_rewind || current_block.Hash() == common_point {
 			break
 		}
 		counter += 1
