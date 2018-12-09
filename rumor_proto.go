@@ -389,7 +389,9 @@ func processTxPublishMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UD
         gossiper.SafePeersList.mux.Lock()
         for _, v := range gossiper.SafePeersList.PeersList {
         	//fmt.Println("TX sent to", v)
-            sendMessage(dec, v, gossiper.PeerConn)
+        	if v != addr.String() {
+            	sendMessage(dec, v, gossiper.PeerConn)
+        	}
         }
         gossiper.SafePeersList.mux.Unlock()
     }
@@ -412,7 +414,9 @@ func processBlockPublishMessage(gossiper *Gossiper, dec *GossipPacket, addr *net
 	if dec.BlockPublish.HopLimit > 0 {
         gossiper.SafePeersList.mux.Lock()
         for _, v := range gossiper.SafePeersList.PeersList {
-            sendMessage(dec, v, gossiper.PeerConn)
+            if v != addr.String() {
+            	sendMessage(dec, v, gossiper.PeerConn)
+        	}
         }
         gossiper.SafePeersList.mux.Unlock()
     }
