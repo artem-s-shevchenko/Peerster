@@ -31,6 +31,7 @@ func main() {
 	} else {
 		go listenRumorClient(goss)
 		go antiEntropy(goss)
+		go mine(goss)
 		if *guiport != "-1" {
 			go runGui(goss, *guiport)
 		}

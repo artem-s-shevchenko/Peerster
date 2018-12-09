@@ -332,7 +332,7 @@ func processDataReplyMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UD
 }
 
 func processSearchRequestMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UDPAddr) {
-    if detectDuplicateRequest(gossiper, dec) == true {
+    if detectDuplicateRequest(gossiper, dec) == false {
         return
     }
 	results := []*SearchResult{}
@@ -376,12 +376,52 @@ func processSearchReplyMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.
     }
 }
 
+func processTxPublishMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UDPAddr) {
+    dec.TxPublish.HopLimit -= 1
+    gossiper.SafeTxPool.mux.Lock()
+    if isTxValid(gossiper, *(dec.TxPublish)) == true {
+    	//fmt.Println("ADD", dec.TxPublish.File.Name)
+    	gossiper.SafeTxPool.TxPool = append(gossiper.SafeTxPool.TxPool, *(dec.TxPublish))
+    }
+    gossiper.SafeTxPool.mux.Unlock()
+    if dec.TxPublish.HopLimit > 0 {
+        gossiper.SafePeersList.mux.Lock()
+        for _, v := range gossiper.SafePeersList.PeersList {
+            sendMessage(dec, v, gossiper.PeerConn)
+        }
+        gossiper.SafePeersList.mux.Unlock()
+    }
+}
+
+func processBlockPublishMessage(gossiper *Gossiper, dec *GossipPacket, addr *net.UDPAddr) {
+	dec.BlockPublish.HopLimit -= 1
+	genesisHash := [32]byte{}
+	gossiper.SafeBlocksRegister.mux.Lock()
+	_, ok := gossiper.SafeBlocksRegister.BlocksRegister[dec.BlockPublish.Block.PrevHash]
+	if(ok == true || dec.BlockPublish.Block.PrevHash == genesisHash) {
+		hash := dec.BlockPublish.Block.Hash()
+		_, ok := gossiper.SafeBlocksRegister.BlocksRegister[hash]
+		if (countZeros(hash) >= 2 && !ok) {
+			gossiper.SafeBlocksRegister.BlocksRegister[hash] = dec.BlockPublish.Block
+			forkInsertion(gossiper, dec.BlockPublish.Block, true)
+		}
+	}
+	gossiper.SafeBlocksRegister.mux.Unlock()
+	if dec.BlockPublish.HopLimit > 0 {
+        gossiper.SafePeersList.mux.Lock()
+        for _, v := range gossiper.SafePeersList.PeersList {
+            sendMessage(dec, v, gossiper.PeerConn)
+        }
+        gossiper.SafePeersList.mux.Unlock()
+    }
+}
+
 func processRumorPeer(gossiper *Gossiper) {
 	for {
 		dec, addr, err := listen(gossiper.PeerConn)
         if err == nil {
     		if dec.Rumor != nil || dec.Status != nil || dec.Private != nil || dec.DataRequest != nil || dec.DataReply != nil || 
-            dec.SearchRequest != nil || dec.SearchReply != nil {
+            dec.SearchRequest != nil || dec.SearchReply != nil || dec.TxPublish != nil || dec.BlockPublish != nil {
     			gossiper.SafePeersList.mux.Lock()
     	    	checkAndAppend(&gossiper.SafePeersList.PeersList, addr.String())
     	    	fmt.Println("PEERS", strings.Join(gossiper.SafePeersList.PeersList, ","))
@@ -407,6 +447,12 @@ func processRumorPeer(gossiper *Gossiper) {
             }
             if dec.SearchReply != nil {
                 processSearchReplyMessage(gossiper, dec, addr)
+            }
+            if dec.TxPublish != nil {
+                processTxPublishMessage(gossiper, dec, addr)
+            }
+            if dec.BlockPublish != nil {
+                processBlockPublishMessage(gossiper, dec, addr)
             }
         }
 	}

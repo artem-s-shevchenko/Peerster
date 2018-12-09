@@ -76,6 +76,28 @@ type SearchResult struct {
 	ChunkCount uint64
 }
 
+type TxPublish struct {
+	File File
+	HopLimit uint
+}
+
+type BlockPublish struct {
+	Block Block
+	HopLimit uint32
+}
+
+type File struct {
+	Name   string
+	Size   int64
+	MetafileHash []byte
+}
+
+type Block struct {
+	PrevHash [32]byte
+	Nonce [32]byte
+	Transactions []TxPublish
+}
+
 type GossipPacket struct {
 	Simple *SimpleMessage
 	Rumor *RumorMessage
@@ -85,6 +107,8 @@ type GossipPacket struct {
 	DataReply *DataReply
 	SearchRequest *SearchRequest
 	SearchReply *SearchReply
+	TxPublish *TxPublish
+	BlockPublish *BlockPublish
 }
 
 func main() {

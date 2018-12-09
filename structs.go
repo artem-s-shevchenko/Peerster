@@ -85,6 +85,28 @@ type SearchResult struct {
 	ChunkCount uint64
 }
 
+type TxPublish struct {
+	File File
+	HopLimit uint32
+}
+
+type BlockPublish struct {
+	Block Block
+	HopLimit uint32
+}
+
+type File struct {
+	Name   string
+	Size   int64
+	MetafileHash []byte
+}
+
+type Block struct {
+	PrevHash [32]byte
+	Nonce [32]byte
+	Transactions []TxPublish
+}
+
 type GossipPacket struct {
 	Simple *SimpleMessage
 	Rumor *RumorMessage
@@ -94,6 +116,8 @@ type GossipPacket struct {
 	DataReply *DataReply
 	SearchRequest *SearchRequest
 	SearchReply *SearchReply
+	TxPublish *TxPublish
+	BlockPublish *BlockPublish
 }
 
 type SafePeersList struct {
@@ -140,11 +164,11 @@ type SafeFileIndex struct {
 }
 
 type SafeFileData struct {
-	FileData map[string] *File
+	FileData map[string] *FileData
 	mux sync.Mutex
 }
 
-type File struct {
+type FileData struct {
 	Metahash [32]byte
 	LastChunk uint64
 	NumberOfChunks uint64
@@ -157,6 +181,21 @@ type SafeSearchResults struct {
 
 type SafeKeywordResultMapping struct {
 	KeywordResultMapping map[string] [][32]byte
+	NameHashMapping map[[32]byte] string
+	mux sync.Mutex
+}
+
+type SafeTxPool struct {
+	TxPool []TxPublish
+	mux sync.Mutex
+}
+
+type SafeBlocksRegister struct {
+	BlocksRegister map[[32]byte] Block
+	NameIndex map[string] bool
+	TailMap map[[32]byte] int
+	ForkPointMap map[[32]byte] [32]byte
+	NewForks [][32]byte
 	mux sync.Mutex
 }
 
@@ -177,6 +216,8 @@ type Gossiper struct {
 	SafeSearchResults *SafeSearchResults
 	SafeKeywordResultMapping *SafeKeywordResultMapping
 	SearchRequestTime map[string] int64
+	SafeTxPool *SafeTxPool
+	SafeBlocksRegister *SafeBlocksRegister
 }
 
 func NewGossiper(clientAddress, peerAddress, name string, peersList []string) *Gossiper {
@@ -209,8 +250,11 @@ func NewGossiper(clientAddress, peerAddress, name string, peersList []string) *G
 		&RoutingTable{RouteTable:map[string]string{}, IdTable:map[string]uint32{}},
 		&SafePrivateMessageHistory{History: map[string] []string{}},
 		&SafeFileIndex{FileIndex: map[[32]byte] []byte{}},
-		&SafeFileData{FileData: map[string] *File{}},
+		&SafeFileData{FileData: map[string] *FileData{}},
 		&SafeSearchResults{SearchResults: map[[32]byte] [][]string{}},
-		&SafeKeywordResultMapping{KeywordResultMapping:map[string] [][32]byte{}},
-		map[string] int64{}}
+		&SafeKeywordResultMapping{KeywordResultMapping:map[string] [][32]byte{}, NameHashMapping: map[[32]byte] string{}},
+		map[string] int64{},
+		&SafeTxPool{TxPool: []TxPublish{}},
+		&SafeBlocksRegister{BlocksRegister: map[[32]byte] Block{}, NameIndex: map[string] bool{}, TailMap: map[[32]byte] int{}, 
+		ForkPointMap: map[[32]byte] [32]byte{}, NewForks: [][32]byte{}}}
 }

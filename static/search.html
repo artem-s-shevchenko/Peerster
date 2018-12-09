@@ -63,7 +63,7 @@
                      if(path_value != null) {
                         path_value = path_value.trim()
                         if(path_value != "") {
-                           var hash = $(this).text()
+                           var hash = $(this).text().split(":")[1]
                            var newMessage = {
                               "Origin": path_value,
                               "Destination": "",
@@ -100,7 +100,7 @@
 <table style="margin-left: auto; margin-right: auto;" border="1">
    <tbody>
       <tr>
-         <td style="height: 30px; width: 550px;">File search
+         <td style="height: 30px; width: 600px;">File search
          </td>
       </tr>
       <tr>
@@ -109,7 +109,7 @@
                I want to find files with name *pattern1*,*pattern2* ...<br />
                <input type="text" id="search_pattern"> <br />
                and budget (empty for default mode) <br />
-               <input type="number" id="budget" min="1" max="32"> <br />
+               <input type="number" id="budget" min="1"> <br />
                <button type="submit">Search</button>
             </form>
          </td>

@@ -23,11 +23,10 @@ func uint64ToString(a []uint64) string {
 
 func processSearchResults(gossiper *Gossiper, dec *GossipPacket) {
 	for _, result := range dec.SearchReply.Results {
-    	fmt.Println("FOUND match", result.FileName, "at node", dec.SearchReply.Origin, "metafile="+hex.EncodeToString(result.MetafileHash), 
+    	fmt.Println("FOUND match", result.FileName, "at", dec.SearchReply.Origin, "metafile="+hex.EncodeToString(result.MetafileHash), 
     		"chunks="+uint64ToString(result.ChunkMap))
     	hashvalue := [32]byte{}
 		copy(hashvalue[:], result.MetafileHash)
-		fmt.Println(hashvalue)
 		number_of_chunks := result.ChunkCount
 		gossiper.SafeSearchResults.mux.Lock()
 		_, ok := gossiper.SafeSearchResults.SearchResults[hashvalue]
@@ -44,11 +43,10 @@ func processSearchResults(gossiper *Gossiper, dec *GossipPacket) {
 					break
 				}
 			}
-			if stop == true {
-				continue
+			if stop == false {
+				gossiper.SafeSearchResults.SearchResults[hashvalue][chunk_index-1] = append(gossiper.SafeSearchResults.SearchResults[hashvalue][chunk_index-1], 
+					dec.SearchReply.Origin)
 			}
- 			gossiper.SafeSearchResults.SearchResults[hashvalue][chunk_index-1] = append(gossiper.SafeSearchResults.SearchResults[hashvalue][chunk_index-1], 
-				dec.SearchReply.Origin)
 		}
 		full := true
 		for _, chunkOwners := range gossiper.SafeSearchResults.SearchResults[hashvalue] {
@@ -60,6 +58,9 @@ func processSearchResults(gossiper *Gossiper, dec *GossipPacket) {
 		gossiper.SafeSearchResults.mux.Unlock()
 		if full == true {
 			gossiper.SafeKeywordResultMapping.mux.Lock()
+			if gossiper.SafeKeywordResultMapping.NameHashMapping[hashvalue] == "" {
+				gossiper.SafeKeywordResultMapping.NameHashMapping[hashvalue] = result.FileName
+			}
 			for key, _ := range gossiper.SafeKeywordResultMapping.KeywordResultMapping {
 				keywords := strings.Split(key, ",")
 				for _, k := range keywords {
@@ -72,18 +73,33 @@ func processSearchResults(gossiper *Gossiper, dec *GossipPacket) {
 								break
 							}
 						}
-						if stop == true {
-							continue
+						if stop == false {
+							gossiper.SafeKeywordResultMapping.KeywordResultMapping[key] = append(gossiper.SafeKeywordResultMapping.KeywordResultMapping[key], hashvalue)
 						}
-			    		gossiper.SafeKeywordResultMapping.KeywordResultMapping[key] = append(gossiper.SafeKeywordResultMapping.KeywordResultMapping[key], hashvalue)
-			    	}
-			    }
+					}
+				}
 			}
 			gossiper.SafeKeywordResultMapping.mux.Unlock()
 		}
 	}
 }
 
+func search_checker(gossiper *Gossiper, key string) {
+	start_time := time.Now().UnixNano()
+	for {
+		gossiper.SafeKeywordResultMapping.mux.Lock()
+		if len(gossiper.SafeKeywordResultMapping.KeywordResultMapping[key])>=2 {
+			gossiper.SafeKeywordResultMapping.mux.Unlock()
+			fmt.Println("SEARCH FINISHED")
+			return
+		}
+		if(time.Now().UnixNano() - start_time > 60*1e9) {
+			gossiper.SafeKeywordResultMapping.mux.Unlock()
+			return
+		}
+		gossiper.SafeKeywordResultMapping.mux.Unlock()
+	}
+}
 
 func search(gossiper *Gossiper, budget uint64, keywords []string, increase bool) {
 	sort.Strings(keywords)
@@ -95,25 +111,23 @@ func search(gossiper *Gossiper, budget uint64, keywords []string, increase bool)
 	}
 	gossiper.SafeKeywordResultMapping.mux.Unlock()
 	req := SearchRequest{gossiper.Nodename, budget, keywords}
+	go search_checker(gossiper, key)
 	for {
 		resendSearchRequest(gossiper, &GossipPacket{SearchRequest: &req}, "")
 		if increase == false {
-			fmt.Println("SEARCH FINISHED")
 			break
 		}
-		gossiper.SafeKeywordResultMapping.mux.Lock()
-		if len(gossiper.SafeKeywordResultMapping.KeywordResultMapping[key])>=2 {
-			gossiper.SafeKeywordResultMapping.mux.Unlock()
-			fmt.Println("SEARCH FINISHED")
-			break
-		}
-		gossiper.SafeKeywordResultMapping.mux.Unlock()
 		req.Budget = 2*(req.Budget+1)
 		if req.Budget>=32 {
-			fmt.Println("SEARCH FINISHED")
 			break
 		}
 		time.Sleep(time.Duration(1) * time.Second)
+		gossiper.SafeKeywordResultMapping.mux.Lock()
+		if len(gossiper.SafeKeywordResultMapping.KeywordResultMapping[key])>=2 {
+			gossiper.SafeKeywordResultMapping.mux.Unlock()
+			break
+		}
+		gossiper.SafeKeywordResultMapping.mux.Unlock()
 	}
 }
 
@@ -150,9 +164,9 @@ func detectDuplicateRequest(gossiper *Gossiper, dec *GossipPacket) bool {
 	if dec.SearchRequest.Origin == gossiper.Nodename {
 		return false
 	}
-	key := strings.Join(dec.SearchRequest.Keywords,",")
+	key := dec.SearchRequest.Origin + ":" + strings.Join(dec.SearchRequest.Keywords,",")
 	current_time := time.Now().UnixNano()
-	if(current_time - gossiper.SearchRequestTime[key] > 5*1e8) {
+	if(current_time - gossiper.SearchRequestTime[key] < 5*1e8) {
 		return false
 	}
 	gossiper.SearchRequestTime[key] = current_time

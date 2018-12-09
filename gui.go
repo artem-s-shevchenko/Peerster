@@ -164,7 +164,7 @@ func (handler_data *HandlerData) searchResultsHandler(w http.ResponseWriter, r *
 		sort.Strings(keywords)
 		key := strings.Join(keywords,",")
 		for _, hash := range handler_data.gossiper.SafeKeywordResultMapping.KeywordResultMapping[key] {
-			update.Newmessages = append(update.Newmessages, hex.EncodeToString(hash[:]))
+			update.Newmessages = append(update.Newmessages, handler_data.gossiper.SafeKeywordResultMapping.NameHashMapping[hash] + ":" + hex.EncodeToString(hash[:]))
 		}
 		handler_data.gossiper.SafeKeywordResultMapping.mux.Unlock()
 	}

@@ -50,8 +50,21 @@ func index_file(gossiper *Gossiper, path string) {
 	gossiper.SafeFileIndex.mux.Unlock()
 	number_of_chunks := len(metafile) / 32
 	gossiper.SafeFileData.mux.Lock()
-	gossiper.SafeFileData.FileData[path] = &File{metafile_hash, uint64(number_of_chunks), uint64(number_of_chunks)}
+	gossiper.SafeFileData.FileData[path] = &FileData{metafile_hash, uint64(number_of_chunks), uint64(number_of_chunks)}
 	gossiper.SafeFileData.mux.Unlock()
+	filestat, _ := file.Stat()
+	tx := TxPublish{File{path, filestat.Size(), metafile_hash[:]}, 9}
+	gossiper.SafeTxPool.mux.Lock()
+    if isTxValid(gossiper, tx) == true {
+    	//fmt.Println("ADD", tx.File.Name)
+    	gossiper.SafeTxPool.TxPool = append(gossiper.SafeTxPool.TxPool, tx)
+    }
+    gossiper.SafeTxPool.mux.Unlock()
+	gossiper.SafePeersList.mux.Lock()
+	for _, v := range gossiper.SafePeersList.PeersList {
+		sendMessage(&GossipPacket{TxPublish: &tx}, v, gossiper.PeerConn)
+	}
+	gossiper.SafePeersList.mux.Unlock()
 	fmt.Println("HASH OF INDEXED", hex.EncodeToString(metafile_hash[:]))
 }
 
@@ -108,7 +121,7 @@ func download_file(gossiper *Gossiper, destination string, hash []byte, save_as 
 	file := []byte{}
 	number_of_chunks := len(metafile) / 32
 	gossiper.SafeFileData.mux.Lock()
-	gossiper.SafeFileData.FileData[save_as] = &File{metahashvalue, uint64(0), uint64(number_of_chunks)}
+	gossiper.SafeFileData.FileData[save_as] = &FileData{metahashvalue, uint64(0), uint64(number_of_chunks)}
 	gossiper.SafeFileData.mux.Unlock()
 	hashvalue := [32]byte{}
 	for chunk := 0; chunk < number_of_chunks; chunk++ {
