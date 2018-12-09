@@ -6,3 +6,5 @@ After running Peerster with such parameter, you can access the GUI on http://127
 Chat boxes in GUI become scrollable when they are filled with messages.
 To work with private messages, click the button "Enter private mode" on the main page. The new browser tab with private messenger will be opened. Before sending a message, a destination must be chosen from the drop-down list.
 To work with files, click the button "Enter file sharing menu" on the main page. The new browser tab with file sharing menu will be opened. File must be placed in _SharedFiles directory before sharing. Names of files to share and to download must be relative to _SharedFiles and to _Downloads correspondingly.
+To work with search, click the button "I want to search" on the file sharing page. The new browser tab with file search menu will be opened. To use it, specify the budget and the search pattern. If budget is not specified, the default incresing policy will be used. To download file, double-click on result and enter a filename using which the file will be saved in _Downloads.
+P.S.: Blockchain implementation is based on mining only when new transactions are appended.

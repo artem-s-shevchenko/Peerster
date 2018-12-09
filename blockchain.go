@@ -218,10 +218,45 @@ func findCommonPoint(gossiper *Gossiper, old_chain_hash [32]byte, new_chain_hash
 
 	if not_common == -1 {
 		common_point = list_a[min_length-1]
+		if len(list_a) > len(list_b) {
+			block_b := gossiper.SafeBlocksRegister.BlocksRegister[new_chain_hash]
+			new_common_point := list_a[min_length]
+			seen := false
+			for {
+				if block_b.Hash() == new_common_point {
+					seen = true
+					break
+				}
+				if block_b.PrevHash == common_point {
+					break;
+				}
+				block_b = gossiper.SafeBlocksRegister.BlocksRegister[block_b.PrevHash]
+			}
+			if seen {
+				common_point = new_common_point
+			}
+		}
+		if len(list_a) < len(list_b) {
+			block_a := gossiper.SafeBlocksRegister.BlocksRegister[old_chain_hash]
+			new_common_point := list_b[min_length]
+			seen := false
+			for {
+				if block_a.Hash() == new_common_point {
+					seen = true
+					break
+				}
+				if block_a.PrevHash == common_point {
+					break;
+				}
+				block_a = gossiper.SafeBlocksRegister.BlocksRegister[block_a.PrevHash]
+			}
+			if seen {
+				common_point = new_common_point
+			}
+		}
 	} else {
 		block_a = gossiper.SafeBlocksRegister.BlocksRegister[list_a[not_common]]
 		block_b = gossiper.SafeBlocksRegister.BlocksRegister[list_b[not_common]]
-		fmt.Println(not_common)
 		common_fork_point := list_b[not_common-1]
 		found_b := false
 		found_a := false
@@ -230,7 +265,7 @@ func findCommonPoint(gossiper *Gossiper, old_chain_hash [32]byte, new_chain_hash
 				found_b = true
 				break
 			}
-			if block_a.PrevHash==  common_fork_point {
+			if block_a.PrevHash == common_fork_point {
 				break;
 			}
 			block_a = gossiper.SafeBlocksRegister.BlocksRegister[block_a.PrevHash]
@@ -248,9 +283,7 @@ func findCommonPoint(gossiper *Gossiper, old_chain_hash [32]byte, new_chain_hash
 			block_b = gossiper.SafeBlocksRegister.BlocksRegister[block_b.PrevHash]
 		}
 		block_b = gossiper.SafeBlocksRegister.BlocksRegister[list_b[not_common]]
-		if(found_a && found_b) {
-			fmt.Println("ALARM!!!!!!")
-		}
+
 		if(found_a && !found_b) {
 			common_point = block_a.Hash()
 		}
@@ -273,7 +306,7 @@ func processFork(gossiper *Gossiper, old_chain_hash [32]byte, new_chain_hash [32
 			not_rewind = true
 			break
 		}
-		if current_block.PrevHash ==  common_point {
+		if current_block.PrevHash == common_point {
 			break;
 		}
 		current_block = gossiper.SafeBlocksRegister.BlocksRegister[current_block.PrevHash]
